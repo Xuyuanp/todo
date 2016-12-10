@@ -3,8 +3,6 @@ module Main where
 import           Control.Exception
 import           Control.Monad
 import           Control.Monad.Reader
-import qualified Data.Text            as T
-import qualified Data.Text.IO         as TIO
 import           Data.Time
 import           System.Directory
 import           System.Environment
@@ -66,15 +64,18 @@ judgeOperation input = do
             liftIO . putStrLn $ "Unknown command"
             return Nothing
 
+borderLine :: String
+borderLine = concat $ replicate 88 "-"
+
 displayMenu :: Todo ()
 displayMenu = do
     liftIO $ do
         putStrLn $ "\n" `mappend` printf " %-5s | %-4s | %-12s | %s" "Index" "Done" "Datetime" "Content"
-        putStrLn $ foldl1 (++) (replicate 88 "-")
+        putStrLn borderLine
     list <- readTodoFile
     liftIO $ do
         printList $ zip [1..] list
-        putStrLn $ foldl1 (++) (replicate 88 "-")
+        putStrLn borderLine
         putStrLn "1)Add 2)Update 3)Delete 4)Done 0)Exit\n\nPlease input operation:"
     where
         printList :: [(Int, Item)] -> IO ()
@@ -98,7 +99,8 @@ addTodoFile = do
         todoItem <- getLine
         appendFile fileName $ show Item { itemDone = False
                                         , itemDue = t
-                                        , itemContent = todoItem } `mappend` "\n"
+                                        , itemContent = todoItem
+                                        } `mappend` "\n"
 
 withIndex :: (Int -> Item -> Todo ()) -> Todo ()
 withIndex f = do
@@ -122,11 +124,14 @@ updateTodoFile = do
     withIndex $ \index item -> do
         list <- readTodoFile
         newList <- liftIO $ do
-            putStrLn $ "Item to be edited is: " `mappend` itemContent item `mappend` ". Please input new item:"
-            newCntnt <- liftIO getLine
+            putStrLn $ concat ["Item to be edited is: ", itemContent item, ". Please input new item:"]
+            newCntnt <- getLine
             if newCntnt /= "" then do
                 t <- getCurrentTime
-                return $ take index list `mappend` [ item { itemContent = newCntnt, itemDue = t } ] `mappend` drop (index + 1) list
+                return $ concat [ take index list
+                                , [ item { itemContent = newCntnt, itemDue = t } ]
+                                , drop (index + 1) list
+                                ]
             else
                 return []
         saveList newList
@@ -151,7 +156,10 @@ completedStamp = do
     withIndex $ \index item -> do
         list <- readTodoFile
         t <- liftIO getCurrentTime
-        let newList = take index list `mappend` [ item { itemDue = t } ] `mappend` drop (index + 1) list
+        let newList = concat [ take index list
+                             , [ item { itemDone = True, itemDue = t } ]
+                             , drop (index + 1) list
+                             ]
         saveList newList
 
 handler :: IOError -> IO ()
